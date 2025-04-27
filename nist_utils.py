@@ -19,13 +19,13 @@ def create_mock_cve_data(cve_id):
         dict: Mock CVE information
     """
     # Create a realistic-looking mock vulnerability for demo purposes
-    severity_options = ['Low', 'Medium', 'High']
+    severity_options = ['HIGH', 'MEDIUM', 'LOW']  # Changed to match NVD API format
     severity = random.choice(severity_options)
     
     # Generate a realistic CVSS score based on severity
-    if severity == 'High':
+    if severity == 'HIGH':
         cvss_score = round(random.uniform(7.0, 10.0), 1)
-    elif severity == 'Medium':
+    elif severity == 'MEDIUM':
         cvss_score = round(random.uniform(4.0, 6.9), 1)
     else:
         cvss_score = round(random.uniform(0.1, 3.9), 1)
@@ -70,11 +70,13 @@ def create_mock_cve_data(cve_id):
     return {
         'id': cve_id,
         'description': description,
-        'severity': severity,
+        'severity': severity,  # Now using consistent uppercase values
         'cvss_score': str(cvss_score),
         'published_date': published_date,
         'last_modified': last_modified,
-        'references': references
+        'references': references,
+        'cvss_vector': f"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",  # Added CVSS vector
+        'cwe_id': f"CWE-{random.randint(1, 1000)}"  # Added CWE ID
     }
 
 def lookup_vulnerabilities(services, cves):

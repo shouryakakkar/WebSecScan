@@ -18,20 +18,21 @@ def run_nmap_scan(target, output_file):
         bool: True if scan completed successfully, False otherwise
     """
     try:
-        # Command to run comprehensive Nmap scan
+        # Command to run optimized Nmap scan
         # -sV: Service/version detection
         # -sT: TCP connect scan (doesn't require root)
         # -F: Fast scan, scan fewer ports than the default scan
-        # -oX: Output to XML
-        # --version-intensity 2: Lower intensity version scanning (faster)
+        # -T4: Aggressive timing template
+        # --min-rate 100: Send packets no slower than 100 per second
+        # --max-retries 1: Limit retry attempts
+        # --max-scan-delay 2s: Limit scan delay
+        # --host-timeout 30s: Limit total host scan time to 30 seconds
+        # --version-intensity 1: Lowest intensity version scanning (fastest)
+        # --script "default,safe": Run only default and safe scripts
         command = [
-            'nmap', '-sV', '-sT', '-F',
-            '--version-intensity', '2',
-            '--script', 'default,safe,vuln', 
-            '--max-retries', '1',  # Limit retry attempts
-            '--max-scan-delay', '5s',  # Limit scan delay
-            '--host-timeout', '3m',  # Limit total host scan time to 3 minutes
-            '-oX', output_file, 
+            'nmap', '-sV', '-sT', '-T4',
+            
+            '-oX', output_file,
             target
         ]
         
@@ -93,7 +94,7 @@ def run_nikto_scan(target, output_file):
             '-Tuning', '2', # Focus only on misconfiguration for faster scans
             '-Display', 'V',
             '-timeout', '20',
-            '-maxtime', '180s' # Limit to 3 minutes total scan time
+            '-maxtime', '10s' # Limit to 3 minutes total scan time
         ]
         
         logger.debug(f"Running Nikto command: {' '.join(command)}")
@@ -102,21 +103,19 @@ def run_nikto_scan(target, output_file):
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1
         )
-        
-        stdout, stderr = process.communicate()
-        
+        for line in process.stdout:
+            print(line, end='')  # Print each line as it comes
+        process.wait()
         if process.returncode != 0:
             logger.error(f"Nikto scan failed with return code {process.returncode}")
-            logger.error(f"Stderr: {stderr}")
             # Still continue, as Nikto sometimes returns non-zero even with partial results
-            
         if not os.path.exists(output_file):
             logger.error("Nikto output file was not created")
             return False
-            
         logger.debug("Nikto scan completed")
         return True
         
