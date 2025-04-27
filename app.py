@@ -3,9 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, session
-from scan_utils import run_nmap_scan, run_nikto_scan, parse_nmap_results, parse_nikto_results
-from nist_utils import lookup_vulnerabilities
-from report_generator import generate_pdf_report
+from background_tasks import start_scan, get_scan_status, get_scan_results
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -51,97 +49,66 @@ def scan():
     }
     
     try:
-        # Run Nmap scan
-        nmap_xml_file = os.path.join(scan_dir, 'nmap_results.xml')
-        logger.debug(f"Starting Nmap scan on {target}")
-        nmap_success = run_nmap_scan(target, nmap_xml_file)
+        # Start the scan in a background thread
+        logger.debug(f"Starting background scan for {target}")
+        start_scan(scan_id, target, scan_dir)
         
-        if not nmap_success:
-            flash('Nmap scan failed. Please check the target and try again.', 'danger')
-            return redirect(url_for('index'))
-            
-        # Parse Nmap results
-        nmap_results = parse_nmap_results(nmap_xml_file)
-        
-        # Run Nikto scan
-        nikto_output_file = os.path.join(scan_dir, 'nikto_results.txt')
-        logger.debug(f"Starting Nikto scan on {target}")
-        nikto_success = run_nikto_scan(target, nikto_output_file)
-        
-        if not nikto_success:
-            flash('Nikto scan completed with errors.', 'warning')
-        
-        # Parse Nikto results
-        nikto_results = parse_nikto_results(nikto_output_file) if nikto_success else []
-        
-        # Lookup vulnerabilities in NIST NVD
-        logger.debug("Looking up vulnerabilities in NIST NVD")
-        
-        # Collect service information from Nmap results
-        services = []
-        for host in nmap_results.get('hosts', []):
-            for port in host.get('ports', []):
-                if 'service' in port and 'product' in port['service']:
-                    services.append({
-                        'product': port['service'].get('product', ''),
-                        'version': port['service'].get('version', ''),
-                        'name': port['service'].get('name', '')
-                    })
-        
-        # Extract CVEs from Nikto results
-        cves = []
-        for item in nikto_results:
-            if 'CVE' in item.get('description', ''):
-                cve_ids = []
-                for part in item.get('description', '').split():
-                    if part.startswith('CVE-'):
-                        cve_ids.append(part)
-                for cve_id in cve_ids:
-                    cves.append(cve_id)
-        
-        # Lookup vulnerabilities
-        vulnerability_data = lookup_vulnerabilities(services, cves)
-        
-        # Organize data for display and reporting
-        scan_data = {
-            'scan_id': scan_id,
-            'target': target,
-            'timestamp': timestamp,
-            'nmap_results': nmap_results,
-            'nikto_results': nikto_results,
-            'vulnerabilities': vulnerability_data,
-            'scan_dir': scan_dir
-        }
-        
-        # Generate PDF report
-        report_file = os.path.join(scan_dir, 'security_report.pdf')
-        generate_pdf_report(scan_data, report_file)
-        
-        # Store scan data in session for accessing in results page
-        session['scan_data'] = scan_data
-        
-        return redirect(url_for('results', scan_id=scan_id))
+        # Redirect to the status page
+        return redirect(url_for('scan_status', scan_id=scan_id))
         
     except Exception as e:
-        logger.error(f"Error during scan: {str(e)}", exc_info=True)
-        flash(f'An error occurred during the scan: {str(e)}', 'danger')
+        logger.error(f"Error initiating scan: {str(e)}", exc_info=True)
+        flash(f'An error occurred while initiating the scan: {str(e)}', 'danger')
         return redirect(url_for('index'))
+
+@app.route('/scan_status/<scan_id>')
+def scan_status(scan_id):
+    """Display scan status and progress"""
+    # Get scan info from session
+    scan_info = session.get('scan_info', None)
+    
+    if not scan_info or scan_info['scan_id'] != scan_id:
+        flash('Scan information not found', 'danger')
+        return redirect(url_for('index'))
+    
+    return render_template('status.html', scan_info=scan_info)
+
+@app.route('/api/scan_status/<scan_id>')
+def api_scan_status(scan_id):
+    """API endpoint for getting scan status"""
+    status = get_scan_status(scan_id)
+    return jsonify(status)
 
 @app.route('/results/<scan_id>')
 def results(scan_id):
     """Display scan results"""
-    scan_data = session.get('scan_data', None)
+    # Get scan results from background task
+    scan_data = get_scan_results(scan_id)
     
-    if not scan_data or scan_data['scan_id'] != scan_id:
-        flash('Scan results not found or expired', 'danger')
-        return redirect(url_for('index'))
+    if not scan_data:
+        # Check if scan is still in progress
+        status = get_scan_status(scan_id)
+        if status.get('status') == 'in_progress':
+            # Redirect to status page
+            return redirect(url_for('scan_status', scan_id=scan_id))
+        else:
+            flash('Scan results not found or scan failed', 'danger')
+            return redirect(url_for('index'))
+    
+    # Store scan data in session for using in download
+    session['scan_data'] = scan_data
     
     return render_template('results.html', scan_data=scan_data)
 
 @app.route('/download_report/<scan_id>')
 def download_report(scan_id):
     """Download the PDF report for a scan"""
-    scan_data = session.get('scan_data', None)
+    # First try to get from background tasks
+    scan_data = get_scan_results(scan_id)
+    
+    # If not found, try from session (backward compatibility)
+    if not scan_data:
+        scan_data = session.get('scan_data', None)
     
     if not scan_data or scan_data['scan_id'] != scan_id:
         flash('Scan report not found or expired', 'danger')

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Scan Progress - Web Server Security Scanner{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2>Scan Progress</h2>
+                </div>
+                <div class="card-body">
+                    <h4>Target: <span id="scan-target">{{ scan_info.target }}</span></h4>
+                    <p>Scan ID: <span class="text-muted">{{ scan_info.scan_id }}</span></p>
+                    <p>Start Time: <span class="text-muted">{{ scan_info.timestamp }}</span></p>
+                    
+                    <div class="mt-4">
+                        <h5>Current Status: <span id="status-text" class="text-primary">Initializing...</span></h5>
+                        <div class="progress mb-3">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 5%;" aria-valuenow="5" aria-valuemin="0" aria-valuemax="100">5%</div>
+                        </div>
+                        <p id="status-message" class="text-muted">Setting up scan...</p>
+                    </div>
+                    
+                    <div id="scan-complete-actions" class="mt-4 d-none">
+                        <a href="{{ url_for('results', scan_id=scan_info.scan_id) }}" class="btn btn-success">View Results</a>
+                    </div>
+                    
+                    <div id="scan-error-message" class="mt-4 alert alert-danger d-none">
+                        An error occurred during the scan. 
+                        <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-danger mt-2">Return to Home</a>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="text-muted small">
+                        <p>Scanning security vulnerabilities in:</p>
+                        <ul>
+                            <li>Open ports and running services</li>
+                            <li>Web server configuration</li>
+                            <li>Known vulnerabilities (CVEs)</li>
+                            <li>Security misconfigurations</li>
+                        </ul>
+                        <p><strong>Note:</strong> Complex scans may take several minutes to complete.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scanId = '{{ scan_info.scan_id }}';
+    const statusText = document.getElementById('status-text');
+    const progressBar = document.getElementById('progress-bar');
+    const statusMessage = document.getElementById('status-message');
+    const scanCompleteActions = document.getElementById('scan-complete-actions');
+    const scanErrorMessage = document.getElementById('scan-error-message');
+    
+    // Poll for scan status
+    function pollStatus() {
+        fetch(`/api/scan_status/${scanId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Update status display
+                statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                
+                if (data.progress) {
+                    progressBar.style.width = `${data.progress}%`;
+                    progressBar.textContent = `${data.progress}%`;
+                    progressBar.setAttribute('aria-valuenow', data.progress);
+                }
+                
+                if (data.message) {
+                    statusMessage.textContent = data.message;
+                }
+                
+                // Handle different statuses
+                if (data.status === 'completed') {
+                    progressBar.classList.remove('progress-bar-animated');
+                    progressBar.classList.add('bg-success');
+                    scanCompleteActions.classList.remove('d-none');
+                    
+                    // Stop polling
+                    clearInterval(pollInterval);
+                    
+                    // Redirect after a short delay
+                    setTimeout(() => {
+                        window.location.href = `/results/${scanId}`;
+                    }, 2000);
+                }
+                else if (data.status === 'failed') {
+                    progressBar.classList.remove('progress-bar-animated');
+                    progressBar.classList.add('bg-danger');
+                    scanErrorMessage.classList.remove('d-none');
+                    scanErrorMessage.querySelector('p').textContent = data.message || 'Scan failed';
+                    
+                    // Stop polling
+                    clearInterval(pollInterval);
+                }
+                else {
+                    // Continue polling for in_progress or initiated status
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching scan status:', error);
+            });
+    }
+    
+    // Poll every 2 seconds
+    pollStatus(); // Initial poll
+    const pollInterval = setInterval(pollStatus, 2000);
+});
+</script>
+{% endblock %}
