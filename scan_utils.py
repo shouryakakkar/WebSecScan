@@ -20,13 +20,12 @@ def run_nmap_scan(target, output_file):
     try:
         # Command to run comprehensive Nmap scan
         # -sV: Service/version detection
-        # -sS: SYN scan (requires root, falls back to TCP connect if not available)
-        # -A: OS detection, version detection, script scanning, and traceroute
-        # --script vuln: Run vulnerability scripts
+        # -sT: TCP connect scan (doesn't require root)
+        # -O: OS detection (might be limited without root)
         # -oX: Output to XML
         command = [
-            'nmap', '-sV', '-sS', '-A', 
-            '--script', 'vuln', 
+            'nmap', '-sV', '-sT', '-O', 
+            '--script', 'default,safe,vuln', 
             '-oX', output_file, 
             target
         ]
@@ -76,10 +75,19 @@ def run_nikto_scan(target, output_file):
             target = 'http://' + target
             
         # Command to run Nikto scan
+        # Using a more basic scan for reliability
+        # -h: Target host
+        # -o: Output file
+        # -Format: Output format
+        # -Tuning: Scan tuning (1: Interesting files, 2: Misconfiguration, 3: Information disclosure, 4: Injection)
+        # -Display: Customize display output
         command = [
             'nikto', '-h', target, 
             '-o', output_file, 
-            '-Format', 'txt'
+            '-Format', 'txt',
+            '-Tuning', '1234',
+            '-Display', 'V',
+            '-timeout', '30'
         ]
         
         logger.debug(f"Running Nikto command: {' '.join(command)}")
@@ -135,7 +143,7 @@ def parse_nmap_results(xml_file):
         # Add scan info
         scan_info = root.find('scaninfo')
         if scan_info is not None:
-            result['scan_info'] = scan_info.attrib
+            result['scan_info'] = dict(scan_info.attrib)
             
         # Process each host
         for host in root.findall('host'):
