@@ -1,0 +1,121 @@
+/**
+ * Web Server Security Scanner - Custom CSS
+ * 
+ * This file contains custom styles for the security scanner application.
+ * It extends the Bootstrap dark theme with specific styling for the application.
+ */
+
+/* General styling */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* Card styling */
+.card {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: none;
+}
+
+.card-header {
+    border-bottom: none;
+}
+
+/* Override the default dark theme colors for some components */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0a58ca;
+    border-color: #0a53be;
+}
+
+/* Scan results styling */
+.severity-high {
+    color: #dc3545;
+}
+
+.severity-medium {
+    color: #ffc107;
+}
+
+.severity-low {
+    color: #28a745;
+}
+
+.severity-info {
+    color: #17a2b8;
+}
+
+/* Progress bar animation */
+@keyframes progress-bar-stripes {
+    from { background-position: 1rem 0; }
+    to { background-position: 0 0; }
+}
+
+/* Customize the scan form */
+#scanForm .input-group {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+#scanForm .form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Customize tab navigation */
+.nav-tabs .nav-link {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.nav-tabs .nav-link.active {
+    color: #fff;
+    background-color: var(--bs-dark);
+    border-bottom-color: var(--bs-dark);
+}
+
+/* Override accordion styling */
+.accordion-button:not(.collapsed) {
+    color: #fff;
+    background-color: var(--bs-primary);
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Custom table styling */
+.table-responsive {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+/* Make the scan progress more visible */
+#scanProgress {
+    padding: 1.5rem;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+}
+
+#scanProgressBar {
+    height: 1.5rem;
+}
+
+/* Improve readability of vulnerability descriptions */
+.description {
+    white-space: pre-line;
+    line-height: 1.6;
+}
+
+/* Make sure chart containers have minimum height */
+canvas {
+    min-height: 250px;
+}
