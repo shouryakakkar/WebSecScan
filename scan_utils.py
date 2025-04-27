@@ -21,11 +21,16 @@ def run_nmap_scan(target, output_file):
         # Command to run comprehensive Nmap scan
         # -sV: Service/version detection
         # -sT: TCP connect scan (doesn't require root)
-        # -O: OS detection (might be limited without root)
+        # -F: Fast scan, scan fewer ports than the default scan
         # -oX: Output to XML
+        # --version-intensity 2: Lower intensity version scanning (faster)
         command = [
-            'nmap', '-sV', '-sT', '-O', 
+            'nmap', '-sV', '-sT', '-F',
+            '--version-intensity', '2',
             '--script', 'default,safe,vuln', 
+            '--max-retries', '1',  # Limit retry attempts
+            '--max-scan-delay', '5s',  # Limit scan delay
+            '--host-timeout', '3m',  # Limit total host scan time to 3 minutes
             '-oX', output_file, 
             target
         ]
@@ -85,9 +90,10 @@ def run_nikto_scan(target, output_file):
             'nikto', '-h', target, 
             '-o', output_file, 
             '-Format', 'txt',
-            '-Tuning', '1234',
+            '-Tuning', '2', # Focus only on misconfiguration for faster scans
             '-Display', 'V',
-            '-timeout', '30'
+            '-timeout', '20',
+            '-maxtime', '180s' # Limit to 3 minutes total scan time
         ]
         
         logger.debug(f"Running Nikto command: {' '.join(command)}")
