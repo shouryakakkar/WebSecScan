@@ -9,16 +9,10 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "test_vercel.py"
+      "dest": "/test_vercel.py"
     }
   ],
   "env": {
-    "PYTHONPATH": ".",
-    "FLASK_ENV": "production"
-  },
-  "functions": {
-    "test_vercel.py": {
-      "maxDuration": 30
-    }
+    "PYTHONPATH": "."
   }
 } 
