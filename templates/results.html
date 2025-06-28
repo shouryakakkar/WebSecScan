@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+
+{% block title %}Scan Results{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h2 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Scan Results</h2>
+                <a href="{{ url_for('download_report', scan_id=scan_data.scan_id) }}" class="btn btn-light">
+                    <i class="fas fa-file-pdf me-2"></i>Download PDF Report
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h4>Scan Summary</h4>
+                        <table class="table table-bordered">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 30%">Target</th>
+                                    <td>{{ scan_data.target }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Scan ID</th>
+                                    <td>{{ scan_data.scan_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Scan Date</th>
+                                    <td>{{ scan_data.timestamp }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h4 class="card-title">Vulnerability Summary</h4>
+                                <canvas id="vulnerabilityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Nav tabs for different sections -->
+                <ul class="nav nav-tabs mb-4" id="resultsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="ports-tab" data-bs-toggle="tab" data-bs-target="#ports" type="button" role="tab" aria-controls="ports" aria-selected="true">
+                            <i class="fas fa-network-wired me-2"></i>Ports & Services
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="vulns-tab" data-bs-toggle="tab" data-bs-target="#vulns" type="button" role="tab" aria-controls="vulns" aria-selected="false">
+                            <i class="fas fa-bug me-2"></i>Web Vulnerabilities
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="cves-tab" data-bs-toggle="tab" data-bs-target="#cves" type="button" role="tab" aria-controls="cves" aria-selected="false">
+                            <i class="fas fa-exclamation-triangle me-2"></i>CVE Details
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations" type="button" role="tab" aria-controls="recommendations" aria-selected="false">
+                            <i class="fas fa-check-circle me-2"></i>Recommendations
+                        </button>
+                    </li>
+                </ul>
+                
+                <!-- Tab panes -->
+                <div class="tab-content">
+                    <!-- Ports & Services Tab -->
+                    <div class="tab-pane fade show active" id="ports" role="tabpanel" aria-labelledby="ports-tab">
+                        {% if scan_data.nmap_results and scan_data.nmap_results.hosts %}
+                            {% for host in scan_data.nmap_results.hosts %}
+                                <h5 class="mb-3">
+                                    Host: {{ host.address|default('Unknown') }}
+                                    {% if host.hostname %}
+                                        ({{ host.hostname }})
+                                    {% endif %}
+                                </h5>
+                                
+                                {% if host.os %}
+                                <div class="mb-3">
+                                    <strong>Operating System:</strong> {{ host.os.name|default('Unknown') }} 
+                                    (Accuracy: {{ host.os.accuracy|default('Unknown') }})
+                                </div>
+                                {% endif %}
+                                
+                                {% if host.ports %}
+                                    <div class="table-responsive mb-4">
+                                        <table class="table table-striped table-hover">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Port</th>
+                                                    <th>Protocol</th>
+                                                    <th>State</th>
+                                                    <th>Service</th>
+                                                    <th>Version</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for port in host.ports %}
+                                                <tr>
+                                                    <td>{{ port.port_id }}</td>
+                                                    <td>{{ port.protocol }}</td>
+                                                    <td>
+                                                        {% if port.state == 'open' %}
+                                                            <span class="badge bg-success">{{ port.state }}</span>
+                                                        {% elif port.state == 'closed' %}
+                                                            <span class="badge bg-danger">{{ port.state }}</span>
+                                                        {% elif port.state == 'filtered' %}
+                                                            <span class="badge bg-warning">{{ port.state }}</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">{{ port.state }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ port.service.name|default('Unknown') }}</td>
+                                                    <td>
+                                                        {% if port.service.product %}
+                                                            {{ port.service.product }}
+                                                            {% if port.service.version %}
+                                                                {{ port.service.version }}
+                                                            {% endif %}
+                                                            {% if port.service.extra_info %}
+                                                                ({{ port.service.extra_info }})
+                                                            {% endif %}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-info">No open ports detected for this host.</div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-warning">No port scan results available.</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Web Vulnerabilities Tab -->
+                    <div class="tab-pane fade" id="vulns" role="tabpanel" aria-labelledby="vulns-tab">
+                        {% if scan_data.nikto_results %}
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th style="width: 15%">ID</th>
+                                            <th style="width: 15%">Severity</th>
+                                            <th style="width: 70%">Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for finding in scan_data.nikto_results %}
+                                        <tr>
+                                            <td>{{ finding.id }}</td>
+                                            <td>
+                                                {% if finding.severity == 'High' %}
+                                                    <span class="badge bg-danger">{{ finding.severity }}</span>
+                                                {% elif finding.severity == 'Medium' %}
+                                                    <span class="badge bg-warning text-dark">{{ finding.severity }}</span>
+                                                {% elif finding.severity == 'Low' %}
+                                                    <span class="badge bg-success">{{ finding.severity }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">{{ finding.severity }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ finding.description }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">No web vulnerability findings available.</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- CVE Details Tab -->
+                    <div class="tab-pane fade" id="cves" role="tabpanel" aria-labelledby="cves-tab">
+                        {% if scan_data.vulnerabilities %}
+                            <div class="accordion" id="cveAccordion">
+                                {% for cve_id, vuln in scan_data.vulnerabilities.items() %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading{{ loop.index }}">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                                            <div class="d-flex align-items-center w-100">
+                                                <div style="width: 40%">
+                                                    <strong>{{ cve_id }}</strong>
+                                                </div>
+                                                <div style="width: 20%">
+                                                    {% if vuln.severity == 'HIGH' or vuln.severity == 'High' %}
+                                                        <span class="badge bg-danger">{{ vuln.severity }}</span>
+                                                    {% elif vuln.severity == 'MEDIUM' or vuln.severity == 'Medium' %}
+                                                        <span class="badge bg-warning text-dark">{{ vuln.severity }}</span>
+                                                    {% elif vuln.severity == 'LOW' or vuln.severity == 'Low' %}
+                                                        <span class="badge bg-success">{{ vuln.severity }}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ vuln.severity }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div style="width: 15%">
+                                                    CVSS: {{ vuln.cvss_score }}
+                                                </div>
+                                                <div style="width: 25%" class="text-truncate">
+                                                    {{ vuln.description[:50] }}...
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#cveAccordion">
+                                        <div class="accordion-body">
+                                            <div class="mb-3">
+                                                <strong>Description:</strong>
+                                                <p>{{ vuln.description }}</p>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <strong>Published:</strong> {{ vuln.published_date }}
+                                                <br>
+                                                <strong>Last Modified:</strong> {{ vuln.last_modified }}
+                                            </div>
+                                            
+                                            {% if vuln.references %}
+                                                <div>
+                                                    <strong>References:</strong>
+                                                    <ul>
+                                                        {% for ref in vuln.references %}
+                                                            <li>
+                                                                <a href="{{ ref.url }}" target="_blank" rel="noopener noreferrer">
+                                                                    {{ ref.name or ref.url }}
+                                                                </a>
+                                                                {% if ref.source %}
+                                                                    ({{ ref.source }})
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">No CVE details available.</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Recommendations Tab -->
+                    <div class="tab-pane fade" id="recommendations" role="tabpanel" aria-labelledby="recommendations-tab">
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">General Security Recommendations</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">Keep all software up-to-date with the latest security patches</li>
+                                    <li class="list-group-item">Implement proper network segmentation to limit access to sensitive systems</li>
+                                    <li class="list-group-item">Use strong password policies and consider multi-factor authentication</li>
+                                    <li class="list-group-item">Monitor system logs for suspicious activities</li>
+                                    <li class="list-group-item">Regularly perform security scans and penetration testing</li>
+                                    <li class="list-group-item">Follow the principle of least privilege for user access</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0">Web Server Specific Recommendations</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">Configure proper HTTP security headers (Content-Security-Policy, X-XSS-Protection, etc.)</li>
+                                    <li class="list-group-item">Disable unnecessary HTTP methods and directory listing</li>
+                                    <li class="list-group-item">Use HTTPS with proper certificate configuration</li>
+                                    <li class="list-group-item">Implement a Web Application Firewall (WAF) for additional protection</li>
+                                    <li class="list-group-item">Remove server version information from HTTP headers</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        {% if scan_data.nikto_results %}
+                            <div class="card">
+                                <div class="card-header bg-danger text-white">
+                                    <h5 class="mb-0">Remediation Priorities</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Based on the scan results, prioritize remediation in the following order:</p>
+                                    
+                                    <ol class="list-group list-group-numbered">
+                                        {% set high_count = scan_data.nikto_results|selectattr('severity', 'equalto', 'High')|list|length %}
+                                        {% set medium_count = scan_data.nikto_results|selectattr('severity', 'equalto', 'Medium')|list|length %}
+                                        {% set low_count = scan_data.nikto_results|selectattr('severity', 'equalto', 'Low')|list|length %}
+                                        
+                                        {% if high_count > 0 %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                <div class="ms-2 me-auto">
+                                                    <div class="fw-bold">High severity vulnerabilities</div>
+                                                    Address these immediately
+                                                </div>
+                                                <span class="badge bg-danger rounded-pill">{{ high_count }}</span>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        {% if medium_count > 0 %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                <div class="ms-2 me-auto">
+                                                    <div class="fw-bold">Medium severity vulnerabilities</div>
+                                                    Fix in the next update cycle
+                                                </div>
+                                                <span class="badge bg-warning text-dark rounded-pill">{{ medium_count }}</span>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        {% if low_count > 0 %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                <div class="ms-2 me-auto">
+                                                    <div class="fw-bold">Low severity vulnerabilities</div>
+                                                    Schedule for future maintenance
+                                                </div>
+                                                <span class="badge bg-success rounded-pill">{{ low_count }}</span>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        <li class="list-group-item d-flex justify-content-between align-items-start">
+                                            <div class="ms-2 me-auto">
+                                                <div class="fw-bold">Implement general best practices</div>
+                                                As part of ongoing maintenance
+                                            </div>
+                                        </li>
+                                    </ol>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Count vulnerabilities by severity
+    let highCount = 0;
+    let mediumCount = 0;
+    let lowCount = 0;
+    let infoCount = 0;
+    
+    // Count Nikto findings
+    {% if scan_data.nikto_results %}
+        {% for finding in scan_data.nikto_results %}
+            {% if finding.severity == 'High' %}
+                highCount++;
+            {% elif finding.severity == 'Medium' %}
+                mediumCount++;
+            {% elif finding.severity == 'Low' %}
+                lowCount++;
+            {% else %}
+                infoCount++;
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    
+    // Count CVEs
+    {% if scan_data.vulnerabilities %}
+        {% for cve_id, vuln in scan_data.vulnerabilities.items() %}
+            {% if vuln.severity == 'HIGH' or vuln.severity == 'High' %}
+                highCount++;
+            {% elif vuln.severity == 'MEDIUM' or vuln.severity == 'Medium' %}
+                mediumCount++;
+            {% elif vuln.severity == 'LOW' or vuln.severity == 'Low' %}
+                lowCount++;
+            {% else %}
+                infoCount++;
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    
+    // Create vulnerability chart
+    const ctx = document.getElementById('vulnerabilityChart').getContext('2d');
+    const vulnerabilityChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['High', 'Medium', 'Low', 'Informational'],
+            datasets: [{
+                data: [highCount, mediumCount, lowCount, infoCount],
+                backgroundColor: [
+                    '#dc3545', // danger/high
+                    '#ffc107', // warning/medium
+                    '#28a745', // success/low
+                    '#17a2b8'  // info/informational
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                title: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Security Scan Results - {{ scan_data.target }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">
+                        <i class="fas fa-shield-alt"></i> Security Scan Results
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Target:</strong> {{ scan_data.target }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Scan Time:</strong> {{ scan_data.scan_time }}
+                        </div>
+                    </div>
+                    
+                    <!-- Download Results -->
+                    <div class="mb-3">
+                        <div class="btn-group" role="group" aria-label="Download options">
+                            <a href="{{ url_for('download_results', scan_id=scan_data.scan_id) }}" 
+                               class="btn btn-success">
+                                <i class="fas fa-download"></i> JSON
+                            </a>
+                            <a href="{{ url_for('download_csv', scan_id=scan_data.scan_id) }}" 
+                               class="btn btn-info">
+                                <i class="fas fa-file-csv"></i> CSV
+                            </a>
+                            <a href="{{ url_for('download_pdf', scan_id=scan_data.scan_id) }}" 
+                               class="btn btn-danger">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Headers -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-headers"></i> Security Headers Analysis
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Header</th>
+                                    <th>Value</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for header, value in scan_data.security_headers.items() %}
+                                <tr>
+                                    <td><code>{{ header.replace('_', '-').title() }}</code></td>
+                                    <td>
+                                        {% if value == 'Not Set' %}
+                                            <span class="text-danger">{{ value }}</span>
+                                        {% else %}
+                                            <span class="text-success">{{ value }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if value == 'Not Set' %}
+                                            <span class="badge bg-danger">Missing</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Present</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SSL/TLS Configuration -->
+    {% if scan_data.ssl_info and 'error' not in scan_data.ssl_info %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-lock"></i> SSL/TLS Configuration
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Version:</strong> {{ scan_data.ssl_info.version }}<br>
+                            <strong>Cipher:</strong> {{ scan_data.ssl_info.cipher }}<br>
+                            <strong>Valid From:</strong> {{ scan_data.ssl_info.cert_valid_from }}<br>
+                            <strong>Expires:</strong> {{ scan_data.ssl_info.cert_expiry }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Subject:</strong> {{ scan_data.ssl_info.cert_subject.get('commonName', 'N/A') }}<br>
+                            <strong>Issuer:</strong> {{ scan_data.ssl_info.cert_issuer.get('commonName', 'N/A') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Vulnerabilities -->
+    {% if scan_data.vulnerabilities %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Vulnerabilities Found ({{ scan_data.vulnerabilities|length }})
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% for vuln in scan_data.vulnerabilities %}
+                    <div class="alert alert-danger">
+                        <h6>{{ vuln.type }}</h6>
+                        <p class="mb-1">{{ vuln.description }}</p>
+                        {% if vuln.url %}
+                        <small><strong>URL:</strong> <a href="{{ vuln.url }}" target="_blank">{{ vuln.url }}</a></small><br>
+                        {% endif %}
+                        <span class="badge bg-{{ 'danger' if vuln.severity == 'High' else 'warning' if vuln.severity == 'Medium' else 'info' }}">
+                            {{ vuln.severity }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Information Disclosure -->
+    {% if scan_data.information_disclosure %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Information Disclosure ({{ scan_data.information_disclosure|length }})
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% for disclosure in scan_data.information_disclosure %}
+                    <div class="alert alert-warning">
+                        <h6>{{ disclosure.type }}</h6>
+                        <p class="mb-1">{{ disclosure.description }}</p>
+                        <span class="badge bg-{{ 'danger' if disclosure.severity == 'High' else 'warning' if disclosure.severity == 'Medium' else 'info' }}">
+                            {{ disclosure.severity }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Technology Stack -->
+    {% if scan_data.technology_stack %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cogs"></i> Technology Stack Detected
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% for tech in scan_data.technology_stack %}
+                    <span class="badge bg-secondary me-2 mb-2">{{ tech }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Open Ports -->
+    {% if scan_data.open_ports %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-network-wired"></i> Open Ports ({{ scan_data.open_ports|length }})
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Port</th>
+                                    <th>Service</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for port in scan_data.open_ports %}
+                                <tr>
+                                    <td>{{ port.port }}</td>
+                                    <td>{{ port.service }}</td>
+                                    <td><span class="badge bg-success">{{ port.status }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Robots.txt Analysis -->
+    {% if scan_data.robots_txt.exists %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-robot"></i> Robots.txt Analysis
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p><strong>Status:</strong> <span class="badge bg-success">Found</span></p>
+                    {% if scan_data.robots_txt.sitemap %}
+                    <p><strong>Sitemap:</strong> <a href="{{ scan_data.robots_txt.sitemap }}" target="_blank">{{ scan_data.robots_txt.sitemap }}</a></p>
+                    {% endif %}
+                    <pre class="bg-light p-3 rounded"><code style="color: black;">{{ scan_data.robots_txt.content }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sitemap Analysis -->
+    {% if scan_data.sitemap.exists %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-sitemap"></i> Sitemap Analysis
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p><strong>Status:</strong> <span class="badge bg-success">Found</span></p>
+                    <p><strong>URL Count:</strong> {{ scan_data.sitemap.url_count }}</p>
+                    {% if scan_data.sitemap.last_modified %}
+                    <p><strong>Last Modified:</strong> {{ scan_data.sitemap.last_modified }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recommendations -->
+    {% if scan_data.recommendations %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-lightbulb"></i> Security Recommendations ({{ scan_data.recommendations|length }})
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% for rec in scan_data.recommendations %}
+                    <div class="alert alert-{{ 'danger' if rec.severity == 'High' else 'warning' if rec.severity == 'Medium' else 'info' }}">
+                        <h6>{{ rec.title }}</h6>
+                        <p class="mb-1">{{ rec.description }}</p>
+                        <small><strong>Category:</strong> {{ rec.category }}</small>
+                        <span class="badge bg-{{ 'danger' if rec.severity == 'High' else 'warning' if rec.severity == 'Medium' else 'info' }} float-end">
+                            {{ rec.severity }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Back to Scan -->
+    <div class="row mt-4 mb-4">
+        <div class="col-12 text-center">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Perform Another Scan
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 
