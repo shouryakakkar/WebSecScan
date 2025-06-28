@@ -49,7 +49,7 @@ A modern web application security scanner built with Python/Flask.
 - **Backend**: Python 3.9+, Flask
 - **Frontend**: HTML5, CSS3, Bootstrap 5, JavaScript
 - **Dependencies**: requests, ssl, socket (built-in Python modules)
-- **Deployment**: Vercel, Render, Railway, Heroku
+- **Deployment**: Vercel, Render
 
 ## 📦 Installation
 
@@ -73,36 +73,6 @@ A modern web application security scanner built with Python/Flask.
 
 4. **Access the application**
    - Open http://localhost:5000 in your browser
-
-## 🚀 Deployment
-
-### Vercel (Recommended - Free)
-
-1. **Install Vercel CLI**
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Deploy**
-   ```bash
-   vercel
-   ```
-
-3. **Follow the prompts and your app will be live!**
-
-### Render (Free Tier)
-
-1. **Connect your GitHub repository to Render**
-2. **Create a new Web Service**
-3. **Configure:**
-   - **Build Command**: `pip install -r requirements_web.txt`
-   - **Start Command**: `python web_app.py`
-   - **Environment**: Python 3
-
-### Railway (Free with $5 credit)
-
-1. **Connect your GitHub repository to Railway**
-2. **Railway will auto-detect Python and deploy**
 
 ## 🔧 API Usage
 
